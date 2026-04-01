@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Codex 원격</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="topbar-row">
+          <div class="topbar-left">
+            <button id="openMenuButton" class="secondary-button icon-button" type="button" aria-label="메뉴 열기">
+              ☰
+            </button>
+            <div class="mobile-title-block">
+              <span id="mobileTitle" class="mobile-title">Codex 원격</span>
+              <span id="mobileSubtitle" class="mobile-subtitle">macOS 원격 브리지</span>
+            </div>
+          </div>
+
+          <div class="brand-block">
+            <span class="eyebrow">macOS 원격 브리지</span>
+            <h1>Codex 원격</h1>
+          </div>
+
+          <div class="topbar-actions">
+            <button id="openProjectsButton" class="secondary-button" type="button">프로젝트</button>
+            <button id="openThreadsButton" class="secondary-button" type="button">스레드</button>
+          </div>
+        </div>
+
+        <div class="status-strip">
+          <span class="status-pill" id="serverStatus">서버 ...</span>
+          <span class="status-pill" id="codexStatus">codex 세션 ...</span>
+          <span class="status-pill" id="queueStatus">대기열 ...</span>
+        </div>
+
+        <div id="pinnedStrip" class="pinned-strip hidden">
+          <span class="pinned-label">고정됨</span>
+          <div id="pinnedList" class="pinned-list" aria-live="polite"></div>
+        </div>
+      </header>
+
+      <main class="workspace-shell">
+        <div id="drawerBackdrop" class="drawer-backdrop hidden"></div>
+
+        <aside id="projectDrawer" class="panel-shell drawer-panel hidden">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">프로젝트</p>
+              <p id="workspaceSummary" class="panel-copy">...</p>
+            </div>
+            <button id="closeProjectsButton" class="secondary-button" type="button">닫기</button>
+          </div>
+
+          <div id="projectList" class="project-list" aria-live="polite"></div>
+        </aside>
+
+        <aside id="threadDrawer" class="panel-shell drawer-panel hidden">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">스레드</p>
+              <h2 id="projectName">...</h2>
+              <p id="projectPath" class="panel-copy"></p>
+            </div>
+            <div class="drawer-actions">
+              <button id="newThreadButton" class="primary-button" type="button">새 스레드</button>
+              <button id="closeThreadsButton" class="secondary-button" type="button">닫기</button>
+            </div>
+          </div>
+
+          <div id="threadList" class="thread-list" aria-live="polite"></div>
+        </aside>
+
+        <aside id="menuDrawer" class="panel-shell drawer-panel drawer-right hidden">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">메뉴</p>
+              <h2>탐색</h2>
+            </div>
+            <button id="closeMenuButton" class="secondary-button icon-button" type="button" aria-label="메뉴 닫기">
+              ×
+            </button>
+          </div>
+
+          <div class="menu-stack">
+            <div class="menu-search-shell">
+              <input
+                id="menuSearchInput"
+                class="menu-search-input"
+                type="text"
+                autocomplete="off"
+                placeholder="프로젝트 또는 스레드 검색"
+              />
+            </div>
+
+            <div class="menu-current-inline">
+              <strong id="menuCurrentThread" class="menu-current-title">선택된 스레드가 없습니다.</strong>
+              <span id="menuCurrentProject" class="menu-section-copy">선택된 워크스페이스가 없습니다.</span>
+            </div>
+
+            <section class="menu-flat-section">
+              <button id="menuNewThreadButton" class="menu-row-button" type="button">새 스레드</button>
+            </section>
+
+            <section id="menuPinnedThreadsSection" class="menu-flat-section hidden">
+              <div class="menu-group-label">고정 스레드</div>
+              <div id="menuPinnedThreadsList" class="menu-project-list" aria-live="polite"></div>
+            </section>
+
+            <section class="menu-flat-section">
+              <div class="menu-group-label">프로젝트</div>
+              <div id="menuProjectSections" class="menu-project-tree" aria-live="polite"></div>
+            </section>
+
+            <section class="menu-flat-section menu-actions-list">
+              <button id="resetButton" class="menu-row-button" type="button">라이브 세션 초기화</button>
+              <button id="logoutButton" class="menu-row-button" type="button">로그아웃</button>
+            </section>
+          </div>
+        </aside>
+
+        <section class="chat-shell">
+          <div class="chat-head">
+            <div>
+              <p class="eyebrow">스레드</p>
+              <h2 id="threadTitle">...</h2>
+              <p id="threadState" class="thread-state">...</p>
+            </div>
+          </div>
+
+          <div id="errorBanner" class="error-banner hidden"></div>
+          <section id="livePanel" class="live-panel hidden">
+            <div class="live-head">
+              <div class="live-copy">
+                <strong id="liveLabel">실시간 상태</strong>
+                <span id="liveStatus">Codex가 대기 중입니다.</span>
+              </div>
+              <button id="interruptButton" class="secondary-button hidden" type="button">중단</button>
+            </div>
+
+            <div id="liveAssistantBlock" class="live-block hidden">
+              <span class="live-block-label">응답 초안</span>
+              <pre id="liveAssistantText" class="live-pre"></pre>
+            </div>
+
+            <div id="livePlanBlock" class="live-block hidden">
+              <span class="live-block-label">계획</span>
+              <pre id="livePlanText" class="live-pre"></pre>
+            </div>
+
+            <div id="liveCommandBlock" class="live-block hidden">
+              <span class="live-block-label">명령 출력</span>
+              <pre id="liveCommandText" class="live-pre"></pre>
+            </div>
+
+            <div id="liveEventList" class="live-event-list"></div>
+          </section>
+          <div class="history-actions">
+            <button id="refreshHistoryButton" class="secondary-button" type="button">최근 내용 새로고침</button>
+            <button id="loadMoreButton" class="secondary-button hidden" type="button">이전 메시지 더 보기</button>
+          </div>
+          <section id="messageList" class="message-list" aria-live="polite"></section>
+          <div id="emptyState" class="empty-state">
+            <p>프로젝트와 스레드를 선택하면 메시지가 표시됩니다.</p>
+          </div>
+        </section>
+      </main>
+
+      <footer class="composer-shell">
+        <div id="loadingIndicator" class="loading-indicator hidden">
+          <span class="progress-spinner" aria-hidden="true"></span>
+          <div class="loading-copy">
+            <strong id="loadingLabel">Codex 응답을 기다리는 중...</strong>
+            <span id="loadingMeta">메시지를 처리하고 있습니다.</span>
+          </div>
+        </div>
+        <div id="approvalBanner" class="approval-banner hidden">
+          <div class="approval-copy">
+            <strong id="approvalLabel">승인이 필요합니다</strong>
+            <span id="approvalPrompt">Codex가 결정을 기다리고 있습니다.</span>
+            <span id="approvalOptions" class="approval-options"></span>
+          </div>
+          <div class="approval-actions">
+            <button id="approveButton" class="primary-button" type="button">승인</button>
+            <button id="denyButton" class="secondary-button" type="button">거절</button>
+          </div>
+        </div>
+        <div id="userInputBanner" class="user-input-banner hidden">
+          <div class="approval-copy">
+            <strong id="userInputLabel">추가 입력이 필요합니다</strong>
+            <span id="userInputPrompt">계속하려면 추가 정보가 필요합니다.</span>
+          </div>
+          <form id="userInputForm" class="user-input-form">
+            <div id="userInputQuestions" class="user-input-questions"></div>
+            <div class="approval-actions">
+              <button id="userInputSubmitButton" class="primary-button" type="submit">계속</button>
+            </div>
+          </form>
+        </div>
+        <div id="terminalInputBanner" class="terminal-input-banner hidden">
+          <div class="approval-copy">
+            <strong id="terminalInputLabel">터미널 입력이 필요합니다</strong>
+            <span id="terminalInputPrompt">실행 중인 명령이 입력을 기다리고 있습니다.</span>
+          </div>
+          <form id="terminalInputForm" class="terminal-input-form">
+            <div class="terminal-input-row">
+              <input
+                id="terminalInputField"
+                type="text"
+                autocomplete="off"
+                placeholder="실행 중인 명령에 보낼 입력"
+              />
+              <div class="approval-actions">
+                <button id="terminalInputSubmitButton" class="primary-button" type="submit">입력 보내기</button>
+                <button id="terminalInputCloseButton" class="secondary-button" type="button">입력 종료</button>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="composer-row">
+          <textarea
+            id="promptInput"
+            rows="1"
+            placeholder="선택한 Codex 스레드에 메시지를 입력하세요"
+          ></textarea>
+          <button id="sendButton" class="primary-button" type="button">보내기</button>
+        </div>
+        <p class="composer-hint">데스크톱: Enter로 전송 · 모바일: 버튼으로 전송</p>
+      </footer>
+    </div>
+
+    <div id="authOverlay" class="auth-overlay">
+      <form id="authForm" class="auth-card">
+        <p class="eyebrow">인증 필요</p>
+        <h2>Codex 원격 연결</h2>
+        <p class="auth-copy">서버 `.env` 파일의 `AUTH_TOKEN` 값을 입력하세요.</p>
+        <input id="tokenInput" type="password" autocomplete="current-password" placeholder="인증 토큰" />
+        <button class="primary-button" type="submit">연결</button>
+        <div id="authError" class="auth-error hidden"></div>
+      </form>
+    </div>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>

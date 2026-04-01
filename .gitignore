@@ -1,0 +1,7 @@
+node_modules/
+.env
+*.log
+run/
+data/history.json
+codex-remote@1.0.0
+node

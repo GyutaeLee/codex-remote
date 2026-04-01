@@ -1,0 +1,21 @@
+{
+  "name": "codex-remote",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Chat-style remote controller for a persistent Codex CLI tmux session on macOS.",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "open": "node scripts/open.js",
+    "close": "node scripts/close.js",
+    "setup:fixed-url": "node scripts/setup-fixed-url.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2"
+  }
+}
