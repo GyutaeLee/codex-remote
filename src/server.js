@@ -682,6 +682,7 @@ app.post(
     const rawMessage = typeof req.body?.message === 'string' ? req.body.message : '';
     const message = sanitizePrompt(rawMessage, config.limits.maxPromptChars);
     const threadId = getThreadIdFromRequest(req);
+    const mode = normalizeStringValue(req.body?.mode) || 'queue';
 
     if (!message) {
       return res.status(400).json({
@@ -701,7 +702,14 @@ app.post(
       });
     }
 
-    if (liveSnapshot?.activeTurnId) {
+    if (mode === 'steer') {
+      if (!liveSnapshot?.activeTurnId) {
+        return res.status(409).json({
+          ok: false,
+          error: 'No active Codex task is available to steer.',
+        });
+      }
+
       await liveRuntime.steerTurn(threadId, message);
 
       return respondSuccess(

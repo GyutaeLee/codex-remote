@@ -736,6 +736,12 @@ input {
   min-width: 0;
 }
 
+.composer-actions {
+  display: grid;
+  gap: 8px;
+  align-self: stretch;
+}
+
 textarea,
 input {
   width: 100%;
@@ -779,7 +785,8 @@ input:focus {
   transition: transform 120ms ease, opacity 120ms ease, background 120ms ease;
 }
 
-.composer-row .primary-button {
+.composer-actions .primary-button,
+.composer-actions .secondary-button {
   align-self: stretch;
   min-height: 48px;
   display: inline-flex;
@@ -859,6 +866,50 @@ input:focus {
   border: 1px solid rgba(21, 43, 60, 0.14);
   display: grid;
   gap: 10px;
+}
+
+.terminal-input-guide,
+.terminal-input-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.terminal-input-status {
+  color: var(--text);
+}
+
+.terminal-context {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  color: var(--text);
+  font-family: "SFMono-Regular", "Menlo", "Monaco", monospace;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.terminal-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.terminal-suggestion-chip {
+  border: 1px solid rgba(21, 43, 60, 0.14);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 5px 8px;
+  font-size: 0.74rem;
+  cursor: pointer;
 }
 
 .approval-copy {
@@ -1386,17 +1437,25 @@ input:focus {
   }
 
   .composer-row {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: 1fr;
     align-items: stretch;
   }
 
-  .composer-row .primary-button {
-    min-width: 60px;
+  .composer-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .composer-actions .primary-button,
+  .composer-actions .secondary-button {
     min-height: 42px;
   }
 
   .terminal-input-row {
     grid-template-columns: 1fr;
+  }
+
+  .terminal-context {
+    max-height: 132px;
   }
 
   .live-head {

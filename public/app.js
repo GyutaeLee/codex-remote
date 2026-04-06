@@ -83,6 +83,7 @@ const state = {
   approvalSubmittingAction: '',
   userInputSubmitting: false,
   terminalInputSubmitting: '',
+  terminalInputLastSent: null,
 };
 
 const elements = {
@@ -156,13 +157,19 @@ const elements = {
   terminalInputBanner: document.getElementById('terminalInputBanner'),
   terminalInputLabel: document.getElementById('terminalInputLabel'),
   terminalInputPrompt: document.getElementById('terminalInputPrompt'),
+  terminalInputGuide: document.getElementById('terminalInputGuide'),
+  terminalInputContext: document.getElementById('terminalInputContext'),
+  terminalInputSuggestions: document.getElementById('terminalInputSuggestions'),
+  terminalInputStatus: document.getElementById('terminalInputStatus'),
   terminalInputForm: document.getElementById('terminalInputForm'),
   terminalInputField: document.getElementById('terminalInputField'),
   terminalInputSubmitButton: document.getElementById('terminalInputSubmitButton'),
   terminalInputCloseButton: document.getElementById('terminalInputCloseButton'),
+  composerHint: document.getElementById('composerHint'),
   messageList: document.getElementById('messageList'),
   emptyState: document.getElementById('emptyState'),
   promptInput: document.getElementById('promptInput'),
+  steerButton: document.getElementById('steerButton'),
   sendButton: document.getElementById('sendButton'),
 };
 
@@ -426,6 +433,7 @@ function setSelectedThread(threadId, persist = true) {
   state.approvalSubmittingAction = '';
   state.userInputSubmitting = false;
   state.terminalInputSubmitting = '';
+  state.terminalInputLastSent = null;
 
   if (persist && threadId) {
     localStorage.setItem(THREAD_KEY, threadId);
@@ -445,6 +453,7 @@ function setSelectedThread(threadId, persist = true) {
   renderApprovalBanner();
   renderUserInputBanner();
   renderTerminalInputBanner();
+  renderComposerState();
   renderMobileTitle();
   renderMenuPanel();
   openLiveStream();
@@ -452,10 +461,9 @@ function setSelectedThread(threadId, persist = true) {
 
 function setSending(sending) {
   state.sending = sending;
-  elements.sendButton.disabled = sending || !elements.promptInput.value.trim() || !state.selectedThreadId;
-  elements.promptInput.disabled = sending;
   elements.newThreadButton.disabled = sending || !state.selectedProjectPath;
   elements.resetButton.disabled = sending;
+  renderComposerState();
   renderProjects();
   renderPinnedThreads();
   renderThreads();
@@ -472,7 +480,7 @@ function setHistoryLoading(loading) {
 function autosizeTextarea() {
   elements.promptInput.style.height = 'auto';
   elements.promptInput.style.height = `${Math.min(elements.promptInput.scrollHeight, 220)}px`;
-  elements.sendButton.disabled = state.sending || !elements.promptInput.value.trim() || !state.selectedThreadId;
+  renderComposerState();
 }
 
 function updateViewportLayout() {
@@ -602,6 +610,55 @@ function refreshHistoryAndWorkspaceSoon() {
   refreshHealth().catch(() => {});
 }
 
+function hasBlockingPendingAction() {
+  return ['approval', 'user_input', 'terminal_input'].includes(state.live?.pendingAction?.kind || '');
+}
+
+function isComposerBlocked() {
+  return state.sending || hasBlockingPendingAction() || !state.selectedThreadId;
+}
+
+function getComposerPlaceholder() {
+  if (!state.selectedThreadId) {
+    return '선택한 Codex 스레드에 메시지를 입력하세요';
+  }
+
+  const pendingKind = state.live?.pendingAction?.kind || '';
+
+  if (pendingKind === 'terminal_input') {
+    return '위 터미널 입력칸에 실행 중인 명령의 답을 보내세요';
+  }
+
+  if (pendingKind === 'approval') {
+    return '위 승인 배너에서 먼저 승인 또는 거절을 선택하세요';
+  }
+
+  if (pendingKind === 'user_input') {
+    return '위 추가 입력 배너에 답을 작성하세요';
+  }
+
+  if (state.live?.activeTurnId) {
+    return '보내기는 다음 턴 대기열에 들어가고, 지금 개입은 현재 작업에 바로 전달됩니다';
+  }
+
+  return '선택한 Codex 스레드에 메시지를 입력하세요';
+}
+
+function renderComposerState() {
+  const blocked = isComposerBlocked();
+  const hasActiveTurn = Boolean(state.live?.activeTurnId);
+  const canSteer = hasActiveTurn && !hasBlockingPendingAction() && !state.sending && Boolean(state.selectedThreadId);
+  elements.promptInput.disabled = blocked;
+  elements.promptInput.placeholder = getComposerPlaceholder();
+  elements.sendButton.disabled = blocked || !elements.promptInput.value.trim() || !state.selectedThreadId;
+  elements.sendButton.textContent = hasActiveTurn ? '큐에 넣기' : '보내기';
+  showElement(elements.steerButton, canSteer);
+  elements.steerButton.disabled = !canSteer || !elements.promptInput.value.trim();
+  elements.composerHint.textContent = hasActiveTurn
+    ? '보내기: 다음 턴 대기열 · 지금 개입: 현재 작업 steer'
+    : '데스크톱: Enter로 전송 · 모바일: 버튼으로 전송';
+}
+
 function applyLiveSnapshot(snapshot) {
   const previousLive = state.live || createEmptyLiveState();
   state.live = snapshot || createEmptyLiveState(state.selectedThreadId);
@@ -616,6 +673,7 @@ function applyLiveSnapshot(snapshot) {
   renderApprovalBanner();
   renderUserInputBanner();
   renderTerminalInputBanner();
+  renderComposerState();
 
   const previousPhase = previousLive.activity?.phase || 'idle';
   const nextPhase = state.live.activity?.phase || 'idle';
@@ -921,6 +979,11 @@ function formatActivityMeta(activity) {
   const pendingAction = state.live?.pendingAction;
 
   if (pendingAction?.prompt) {
+    if (pendingAction.kind === 'terminal_input') {
+      const command = state.live?.stream?.command?.command;
+      return command ? `${pendingAction.prompt} (${command})` : pendingAction.prompt;
+    }
+
     return pendingAction.prompt;
   }
 
@@ -1060,6 +1123,13 @@ function renderTerminalInputBanner() {
     showElement(elements.terminalInputBanner, false);
     elements.terminalInputField.value = '';
     elements.terminalInputField.dataset.pendingKey = '';
+    elements.terminalInputContext.textContent = '';
+    elements.terminalInputSuggestions.innerHTML = '';
+    elements.terminalInputStatus.textContent = '';
+    showElement(elements.terminalInputContext, false);
+    showElement(elements.terminalInputSuggestions, false);
+    showElement(elements.terminalInputStatus, false);
+    state.terminalInputLastSent = null;
     return;
   }
 
@@ -1068,16 +1138,115 @@ function renderTerminalInputBanner() {
   if (elements.terminalInputField.dataset.pendingKey !== pendingKey) {
     elements.terminalInputField.value = '';
     elements.terminalInputField.dataset.pendingKey = pendingKey;
+    state.terminalInputLastSent = null;
+  }
+
+  const command = state.live?.stream?.command || null;
+  const contextLines = [];
+
+  if (command?.command) {
+    contextLines.push(`명령: ${command.command}`);
+  }
+
+  if (command?.cwd) {
+    contextLines.push(`경로: ${command.cwd}`);
+  }
+
+  const outputTail = String(command?.output || '')
+    .trim()
+    .split('\n')
+    .slice(-8)
+    .join('\n')
+    .trim()
+    .slice(-900);
+
+  if (outputTail) {
+    contextLines.push(`최근 출력:\n${outputTail}`);
   }
 
   elements.terminalInputLabel.textContent = pendingAction.title || '터미널 입력이 필요합니다';
   elements.terminalInputPrompt.textContent =
     pendingAction.prompt || '실행 중인 명령이 입력을 기다리고 있습니다.';
+  elements.terminalInputGuide.textContent =
+    '여기는 새 명령을 보내는 곳이 아니라, 실행 중인 명령이 요구한 답을 보내는 곳입니다.';
+  const suggestions = buildTerminalInputSuggestions(pendingAction.prompt, command);
   elements.terminalInputField.disabled = Boolean(state.terminalInputSubmitting);
   elements.terminalInputSubmitButton.disabled = state.terminalInputSubmitting === 'send';
   elements.terminalInputCloseButton.disabled = Boolean(state.terminalInputSubmitting);
+  elements.terminalInputField.placeholder =
+    suggestionsIncludeEnter(suggestions)
+      ? '예: y / n 또는 비워두고 입력 보내기'
+      : '실행 중인 명령에 보낼 입력';
+  elements.terminalInputContext.textContent = contextLines.join('\n\n');
+  showElement(elements.terminalInputContext, Boolean(contextLines.length));
+
+  elements.terminalInputSuggestions.innerHTML = '';
+
+  suggestions.forEach((suggestion) => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'terminal-suggestion-chip';
+    chip.textContent = suggestion.label;
+    chip.disabled = Boolean(state.terminalInputSubmitting);
+    chip.addEventListener('click', () => {
+      elements.terminalInputField.value = suggestion.value;
+      elements.terminalInputField.focus();
+    });
+    elements.terminalInputSuggestions.appendChild(chip);
+  });
+
+  showElement(elements.terminalInputSuggestions, suggestions.length > 0);
+
+  if (state.terminalInputSubmitting === 'send') {
+    elements.terminalInputStatus.textContent = '입력을 보내는 중입니다...';
+    showElement(elements.terminalInputStatus, true);
+  } else if (state.terminalInputSubmitting === 'close') {
+    elements.terminalInputStatus.textContent = '입력을 종료하는 중입니다...';
+    showElement(elements.terminalInputStatus, true);
+  } else if (state.terminalInputLastSent?.pendingKey === pendingKey) {
+    elements.terminalInputStatus.textContent = `마지막으로 보낸 입력: ${state.terminalInputLastSent.label}. 계속 대기하면 다른 값을 보내거나 입력 종료를 누르세요.`;
+    showElement(elements.terminalInputStatus, true);
+  } else {
+    elements.terminalInputStatus.textContent = '';
+    showElement(elements.terminalInputStatus, false);
+  }
 
   showElement(elements.terminalInputBanner, true);
+}
+
+function buildTerminalInputSuggestions(prompt, command) {
+  const text = [prompt, command?.command, command?.output]
+    .filter(Boolean)
+    .join('\n')
+    .toLowerCase();
+  const suggestions = [];
+
+  const push = (label, value) => {
+    if (!suggestions.some((entry) => entry.label === label && entry.value === value)) {
+      suggestions.push({ label, value });
+    }
+  };
+
+  if (!text || /press enter|hit enter|continue|return to continue/.test(text)) {
+    push('Enter만 보내기', '');
+  }
+
+  if (/\[y\/n\]|\(y\/n\)|yes\/no|\byes\b|\bno\b|continue\?/.test(text)) {
+    push('y', 'y');
+    push('n', 'n');
+    push('yes', 'yes');
+    push('no', 'no');
+  }
+
+  if (/\[y\/n\]|\(y\/n\)|press enter|continue/.test(text)) {
+    push('Enter만 보내기', '');
+  }
+
+  return suggestions.slice(0, 4);
+}
+
+function suggestionsIncludeEnter(suggestions) {
+  return suggestions.some((entry) => entry.value === '');
 }
 
 function renderLivePanel() {
@@ -1436,6 +1605,7 @@ function resetWorkspaceView() {
   state.approvalSubmittingAction = '';
   state.userInputSubmitting = false;
   state.terminalInputSubmitting = '';
+  state.terminalInputLastSent = null;
   setSelectedProject('', false);
   setSelectedThread('', false);
   elements.workspaceSummary.textContent = '...';
@@ -1450,6 +1620,7 @@ function resetWorkspaceView() {
   renderLivePanel();
   renderUserInputBanner();
   renderTerminalInputBanner();
+  renderComposerState();
   renderDrawerState();
   renderMenuPanel();
   renderConversation({ stickToBottom: true }, '프로젝트와 스레드를 선택하면 메시지가 표시됩니다.');
@@ -1699,16 +1870,21 @@ async function handleTerminalInputSubmit(event) {
   renderTerminalInputBanner();
 
   try {
+    const rawValue = elements.terminalInputField.value;
     const data = await api('/api/live/terminal-input', {
       method: 'POST',
       body: JSON.stringify({
         threadId: state.selectedThreadId,
-        input: elements.terminalInputField.value,
+        input: rawValue,
         closeStdin: false,
       }),
     });
 
     state.terminalInputSubmitting = '';
+    state.terminalInputLastSent = {
+      pendingKey: `${state.live?.pendingAction?.processId || ''}:${state.live?.pendingAction?.itemId || ''}`,
+      label: rawValue.trim() ? rawValue.trim() : 'Enter',
+    };
     elements.terminalInputField.value = '';
     applyLiveSnapshot(data.live || createEmptyLiveState(state.selectedThreadId));
     await refreshHealth().catch(() => {});
@@ -1739,6 +1915,10 @@ async function handleTerminalInputClose() {
     });
 
     state.terminalInputSubmitting = '';
+    state.terminalInputLastSent = {
+      pendingKey: `${state.live?.pendingAction?.processId || ''}:${state.live?.pendingAction?.itemId || ''}`,
+      label: 'EOF',
+    };
     elements.terminalInputField.value = '';
     applyLiveSnapshot(data.live || createEmptyLiveState(state.selectedThreadId));
     await refreshHealth().catch(() => {});
@@ -1782,6 +1962,41 @@ async function handleSend() {
       applyWorkspacePayload(error.payload.workspace);
     }
 
+    await refreshHealth().catch(() => {});
+  } finally {
+    setSending(false);
+  }
+}
+
+async function handleSteerSend() {
+  const message = elements.promptInput.value.trim();
+
+  if (!message || state.sending || !state.selectedThreadId || !state.live?.activeTurnId || hasBlockingPendingAction()) {
+    return;
+  }
+
+  showError('');
+  closeDrawers();
+  setSending(true);
+
+  try {
+    const data = await api('/api/chat', {
+      method: 'POST',
+      body: JSON.stringify({
+        threadId: state.selectedThreadId,
+        message,
+        mode: 'steer',
+      }),
+    });
+
+    elements.promptInput.value = '';
+    autosizeTextarea();
+    if (data.live) {
+      applyLiveSnapshot(data.live);
+    }
+    await refreshHealth().catch(() => {});
+  } catch (error) {
+    showError(error.message);
     await refreshHealth().catch(() => {});
   } finally {
     setSending(false);
@@ -1904,6 +2119,7 @@ elements.logoutButton.addEventListener('click', logout);
 elements.resetButton.addEventListener('click', handleReset);
 elements.newThreadButton.addEventListener('click', handleNewThread);
 elements.sendButton.addEventListener('click', handleSend);
+elements.steerButton.addEventListener('click', handleSteerSend);
 elements.approveButton.addEventListener('click', () => {
   handleApproval('approve').catch((error) => showError(error.message));
 });
@@ -1991,6 +2207,10 @@ elements.threadList.addEventListener('click', (event) => {
 });
 elements.promptInput.addEventListener('input', autosizeTextarea);
 elements.promptInput.addEventListener('keydown', (event) => {
+  if (elements.promptInput.disabled) {
+    return;
+  }
+
   if (!isMobileLayout() && event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault();
     handleSend().catch((error) => showError(error.message));
@@ -2029,6 +2249,7 @@ autosizeTextarea();
 updateViewportLayout();
 resetWorkspaceView();
 renderDrawerState();
+renderComposerState();
 
 bootstrapAuthorizedView().catch(() => {
   showElement(elements.authOverlay, true);

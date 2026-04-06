@@ -205,6 +205,12 @@
             <strong id="terminalInputLabel">터미널 입력이 필요합니다</strong>
             <span id="terminalInputPrompt">실행 중인 명령이 입력을 기다리고 있습니다.</span>
           </div>
+          <p id="terminalInputGuide" class="terminal-input-guide">
+            여기는 새 명령을 보내는 곳이 아니라, 실행 중인 명령이 요구한 답을 보내는 곳입니다.
+          </p>
+          <pre id="terminalInputContext" class="terminal-context hidden"></pre>
+          <div id="terminalInputSuggestions" class="terminal-suggestions hidden"></div>
+          <p id="terminalInputStatus" class="terminal-input-status hidden"></p>
           <form id="terminalInputForm" class="terminal-input-form">
             <div class="terminal-input-row">
               <input
@@ -226,9 +232,12 @@
             rows="1"
             placeholder="선택한 Codex 스레드에 메시지를 입력하세요"
           ></textarea>
-          <button id="sendButton" class="primary-button" type="button">보내기</button>
+          <div class="composer-actions">
+            <button id="steerButton" class="secondary-button hidden" type="button">지금 개입</button>
+            <button id="sendButton" class="primary-button" type="button">보내기</button>
+          </div>
         </div>
-        <p class="composer-hint">데스크톱: Enter로 전송 · 모바일: 버튼으로 전송</p>
+        <p id="composerHint" class="composer-hint">데스크톱: Enter로 전송 · 모바일: 버튼으로 전송</p>
       </footer>
     </div>
 
